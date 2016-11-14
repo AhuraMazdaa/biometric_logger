@@ -1,4 +1,4 @@
-/********************************************************************************************/
+ /********************************************************************************************/
 /*--------------------------------------------------------------------------------------------
   Program:      Biometric Logger for BCH Volunteers
 
@@ -17,7 +17,7 @@
                 
   Software:     Arduino IDE 1.6.12
                 
-  Source Code:  - github link: 
+  Source Code:  - github link: https://github.com/AhuraMazdaa/biometric_logger/tree/master/BCH_Biolog
   Date:         04 NOV 2016
   Modified:     04 NOV 2016
 
@@ -75,6 +75,10 @@
 #define _Admin_ 6
 //*****************************************************************************************//
 
+//******************************** Function Definitions ***********************************//
+void shut_down();
+//*****************************************************************************************//
+
 //************************************Global Variables*************************************//
 const byte ROWS = 4; //four rows
 const byte COLS = 4; //four columns
@@ -87,7 +91,7 @@ char keys[ROWS][COLS] = {
 byte rowPins[ROWS] = {A0, A1,  A2,  A3}; //connect to the   row  pinouts of the keypad
 byte colPins[COLS] = {A4, A5, A11, A12}; //connect to the column pinouts of the keypad
 
-Keypad keypad = Keypad( makeKeymap(keys), rowPins, colPins, ROWS, COLS );
+Keypad kpd = Keypad( makeKeymap(keys), rowPins, colPins, ROWS, COLS );
 
 LiquidCrystal lcd(36, 38, 40, 42, 44, 46);
 
@@ -101,24 +105,97 @@ char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursd
 //*****************************************************************************************//
 
 void setup() {
-  // put your setup code here, to run once:
+  
   pinMode(2,OUTPUT);
   analogWrite(2,60);
   lcd.begin(16, 2);
+
+  lcd.setCursor(0,0);
+  lcd.print("System Init()");
+  lcd.setCursor(0,1);
+  lcd.print("In Progress...");
 
   finger.begin(9600);
   rtc.begin();
   if (rtc.lostPower()) {
     lcd.println("RTC lost power, lets set the time!");
+    delay(3000);
     // following line sets the RTC to the date & time this sketch was compiled
     rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
     // This line sets the RTC with an explicit date & time, for example to set
     // January 21, 2014 at 3am you would call:
     // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
   }
+
+  delay(1);
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
+  
+  lcd.clear();
+  char mode_key = kpd.getKey();
 
+  switch(mode_key){
+
+  case 'A':
+    //Entry
+    
+    break;
+
+  case 'B':
+    //Exit
+    
+    break;
+
+  case 'C':
+    //Add new Vol
+    
+    break;
+
+  case 'D':
+    //Delete Vol
+    
+    break;
+
+  case '1':
+    //Identify Vol
+    
+    break;
+
+  case '2':
+    //Make Admin
+    
+    break;
+
+  case '3':
+    //Memory Left
+    
+    break;
+
+  case '4':
+    //Set Time
+    
+    break;
+
+  case '5':
+    //Shutdown
+    shut_down();
+    break;
+
+  default:
+    //debugging purposes
+  
+  break;
+
+  }
+  
 }
+
+void shut_down(){
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.println("Ready to be");
+  lcd.print("Powered Off!");
+  while(true){}
+}
+

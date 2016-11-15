@@ -67,15 +67,19 @@
 //*****************************************************************************************//
 
 //************************************* Definitions ***************************************//
-#define _Entry_ 1
-#define _Exit_ 2
-#define _Add_New_ 3
-#define _Identify_ 4
-#define _delete_ 5
-#define _Admin_ 6
+#define _Entry_ 'A'
+#define _Exit_ 'B'
+#define _Add_New_ 'C'
+#define _Delete_ 'D'
+#define _Identify_ '1'
+#define _Admin_ '2'
+#define _Mem_Left_ '3'
+#define _Set_Time_ '4'
+#define _Shutdown_ '5'
 //*****************************************************************************************//
 
 //******************************** Function Definitions ***********************************//
+void printToLcd(String s1,String s2);
 void shut_down();
 //*****************************************************************************************//
 
@@ -101,10 +105,12 @@ Adafruit_Fingerprint finger = Adafruit_Fingerprint(&mySerial);
 RTC_DS3231 rtc;
 char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
-
+DateTime date_set;
 //*****************************************************************************************//
 
 void setup() {
+
+  Serial.begin(9600);
   
   pinMode(2,OUTPUT);
   analogWrite(2,60);
@@ -121,7 +127,7 @@ void setup() {
     lcd.println("RTC lost power, lets set the time!");
     delay(3000);
     // following line sets the RTC to the date & time this sketch was compiled
-    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+    //rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
     // This line sets the RTC with an explicit date & time, for example to set
     // January 21, 2014 at 3am you would call:
     // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
@@ -137,48 +143,50 @@ void loop() {
 
   switch(mode_key){
 
-  case 'A':
+  case _Entry_:
     //Entry
-    
+    //Serial.println("Entry");
+    printToLcd("Entry","");
     break;
 
-  case 'B':
+  case _Exit_:
     //Exit
-    
+    //Serial.println("Exit");
     break;
 
-  case 'C':
+  case _Add_New_:
     //Add new Vol
-    
+    //Serial.println("New Vol");
     break;
 
-  case 'D':
+  case _Delete_:
     //Delete Vol
-    
+    //Serial.println("Delete Vol");
     break;
 
-  case '1':
+  case _Identify_:
     //Identify Vol
-    
+    //Serial.println("Identify Vol");
     break;
 
-  case '2':
+  case _Admin_:
     //Make Admin
-    
+    //Serial.println("Make Admin");
     break;
 
-  case '3':
+  case _Mem_Left_:
     //Memory Left
-    
+    //Serial.println("Mem Left");
     break;
 
-  case '4':
+  case _Set_Time_:
     //Set Time
-    
+    //Serial.println("Set Time");
     break;
 
-  case '5':
+  case _Shutdown_:
     //Shutdown
+    //Serial.println("Shutdown");
     shut_down();
     break;
 
@@ -194,8 +202,16 @@ void loop() {
 void shut_down(){
   lcd.clear();
   lcd.setCursor(0,0);
-  lcd.println("Ready to be");
+  lcd.print("Ready to be");
+  lcd.setCursor(0,1);
   lcd.print("Powered Off!");
   while(true){}
 }
 
+void printToLcd(String s1,String s2){
+  lcd.setCursor(0,0);
+  lcd.print(s1);
+  lcd.setCursor(0,1);
+  lcd.print(s2);
+  delay(1000);
+}

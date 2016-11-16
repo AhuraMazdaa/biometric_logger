@@ -76,10 +76,16 @@
 #define _Mem_Left_ '3'
 #define _Set_Time_ '4'
 #define _Shutdown_ '5'
+#define _year_den 10000000000
+#define _month_den 100000000
+#define _date_den 1000000
+#define _hours_den 10000
+#define _mins_den 100
 //*****************************************************************************************//
 
 //******************************** Function Definitions ***********************************//
 void printToLcd(String s1,String s2);
+bool getTime(int &_year,int &_month,int &_date,int &_hours,int &_mins,int &_secs);
 void shut_down();
 //*****************************************************************************************//
 
@@ -106,6 +112,8 @@ RTC_DS3231 rtc;
 char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
 DateTime date_set;
+
+bool _cancel=false;
 //*****************************************************************************************//
 
 void setup() {
@@ -124,13 +132,26 @@ void setup() {
   finger.begin(9600);
   rtc.begin();
   if (rtc.lostPower()) {
-    lcd.println("RTC lost power, lets set the time!");
-    delay(3000);
+    //lcd.print("RTC lost power, lets set the time!");
     // following line sets the RTC to the date & time this sketch was compiled
     //rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
     // This line sets the RTC with an explicit date & time, for example to set
     // January 21, 2014 at 3am you would call:
-    // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
+
+    printToLcd("RTC Lost Power!","lets set the time.");
+    int _year, _month, _date, _hours, _mins, _secs;
+    _cancel=getTime(_year,_month,_date,_hours,_mins,_secs);
+    if(!_cancel){
+      rtc.adjust(DateTime(_year, _month, _date, _hours, _mins, _secs));
+    }
+    else{
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("Canceled!");
+      //set some default date
+      rtc.adjust(DateTime(2016,11,14,6,30,0));
+      _cancel=false;
+    }
   }
 
   delay(1);
@@ -182,6 +203,25 @@ void loop() {
   case _Set_Time_:
     //Set Time
     //Serial.println("Set Time");
+    printToLcd("Set Time in","yyyy/mm/dd/hh/mm/ss");
+    int _year, _month, _date, _hours, _mins, _secs;
+    _cancel = getTime(_year,_month,_date,_hours,_mins,_secs);
+    if(!_cancel){
+      Serial.println(_year);
+      Serial.println(_month);
+      Serial.println(_date);
+      Serial.println(_hours);
+      Serial.println(_mins);
+      Serial.println(_secs);
+      rtc.adjust(DateTime(_year, _month, _date, _hours, _mins, _secs));
+    }
+    else{
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("Canceled!");
+      //set some default date
+      rtc.adjust(DateTime(2016,11,14,6,30,0));
+    }
     break;
 
   case _Shutdown_:
@@ -213,5 +253,78 @@ void printToLcd(String s1,String s2){
   lcd.print(s1);
   lcd.setCursor(0,1);
   lcd.print(s2);
-  delay(1000);
+  delay(2000);
+}
+
+bool getTime(int &_year,int &_month,int &_date,int &_hours,int &_mins,int &_secs){
+  lcd.setCursor(0,0);
+  lcd.print("Enter Time:");
+  lcd.setCursor(0,1);
+  bool cmplt= false;
+  int count=0;
+  unsigned long num=0;
+  byte digit=0;
+  while(count<14){
+    
+    char k=kpd.getKey();
+    if(k=='A')
+      break;
+    if(k=='B' || k=='C' || k=='D' || k=='*' || k=='#'){
+      _cancel=true;
+      return _cancel;
+    }
+    switch(k){
+      case '1':
+        digit=1;
+        break;
+      case '2':
+        digit=2;
+        break;
+      case '3':
+        digit=3;
+        break;
+      case '4':
+        digit=4;
+        break;
+      case '5':
+        digit=5;
+        break;
+      case '6':
+        digit=6;
+        break;
+      case '7':
+        digit=7;
+        break;
+      case '8':
+        digit=8;
+        break;
+      case '9':
+        digit=9;
+        break;
+      case '0':
+        digit=0;
+        break;
+      default:
+        Serial.println("digit exception!");
+        break;
+    }
+    num=num*10 + digit;
+    count++;
+  }
+
+  Serial.println(num);
+  
+  _year=num/_year_den;
+  num=num%_year_den;
+  _month=num/_month_den;
+  num=num%_month_den;
+  _date=num/_date_den;
+  num=num/_date_den;
+  _hours=num/_hours_den;
+  num=num/_hours_den;
+  _mins=num/_mins_den;
+  num=num/_mins_den;
+  _secs=num;
+  
+  return _cancel;
 }

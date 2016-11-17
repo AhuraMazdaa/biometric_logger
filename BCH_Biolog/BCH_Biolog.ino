@@ -80,6 +80,7 @@
 
 //******************************** Function Definitions ***********************************//
 void printToLcd(String s1,String s2);
+uint8_t getFingerprintID();
 void shut_down();
 //*****************************************************************************************//
 
@@ -121,8 +122,17 @@ void setup() {
   lcd.setCursor(0,1);
   lcd.print("In Progress...");
 
+  if (finger.verifyPassword()) {
+    lcd.print("Found fing sensor!");
+    delay(500);
+  } else {
+    lcd.print("fing init failed");
+    while (1);
+  }
+
   finger.begin(9600);
   rtc.begin();
+  
   if (rtc.lostPower()) {
     lcd.println("RTC lost power, lets set the time!");
     delay(3000);
@@ -167,6 +177,12 @@ void loop() {
   case _Identify_:
     //Identify Vol
     //Serial.println("Identify Vol");
+    lcd.clear();
+    printToLcd("Identifying...","Place finger!");
+    uint8_t x;
+    x = getFingerprintID();
+    
+    
     break;
 
   case _Admin_:
@@ -214,4 +230,71 @@ void printToLcd(String s1,String s2){
   lcd.setCursor(0,1);
   lcd.print(s2);
   delay(1000);
+}
+
+uint8_t getFingerprintID() {
+  uint8_t p = finger.getImage();
+  switch (p) {
+    case FINGERPRINT_OK:
+      printToLcd("Image Taken!","");
+      break;
+    case FINGERPRINT_NOFINGER:
+      printToLcd("No finger detected","");
+      return p;
+    case FINGERPRINT_PACKETRECIEVEERR:
+      printToLcd("Communication","Error");
+      return p;
+    case FINGERPRINT_IMAGEFAIL:
+      printToLcd("Imaging error","");
+      return p;
+    default:
+      printToLcd("Unknown error","");
+      return p;
+  }
+
+  // OK success!
+
+  p = finger.image2Tz();
+  switch (p) {
+    case FINGERPRINT_OK:
+      printToLcd("Image converted","");
+      break;
+    case FINGERPRINT_IMAGEMESS:
+      printToLcd("Image too messy","");
+      return p;
+    case FINGERPRINT_PACKETRECIEVEERR:
+      printToLcd("Communication","Error");
+      return p;
+    case FINGERPRINT_FEATUREFAIL:
+      printToLcd("Could not find","fingerprint features");
+      return p;
+    case FINGERPRINT_INVALIDIMAGE:
+      printToLcd("Could not find","fingerprint features");
+      return p;
+    default:
+      printToLcd("Unknown error","");
+      return p;
+  }
+  
+  // OK converted!
+  p = finger.fingerFastSearch();
+  if (p == FINGERPRINT_OK) {
+    printToLcd("Found a print match!","");
+  } else if (p == FINGERPRINT_PACKETRECIEVEERR) {
+    printToLcd("Communication error","");
+    return p;
+  } else if (p == FINGERPRINT_NOTFOUND) {
+    printToLcd("Did not find","a match");
+    return p;
+  } else {
+    printToLcd("Unknown error","");
+    return p;
+  }   
+  
+  // found a match!
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("Found ID #"); lcd.print(finger.fingerID);
+  lcd.setCursor(0,1);
+  lcd.print(" w/ conf="); lcd.print(finger.confidence); 
 }

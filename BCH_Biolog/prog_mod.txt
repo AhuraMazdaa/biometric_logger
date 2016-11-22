@@ -1,0 +1,134 @@
+
+File webFile;
+String D1="D123456.CSV";
+
+String pi="D123456.CSV";
+
+String dateString="00/00/00";
+String timeString="00:00:00";
+
+
+char r[12];
+char te[12];
+
+void setup()
+{
+
+    SD.begin(4);
+    
+}
+
+                     {
+                        webFile.close();
+                        webFile = SD.open("current.CSV");
+                        if (webFile) {
+                        client.println("HTTP/1.1 200 OK");
+                        client.println("Content-Type: text/csv");
+                        client.println();
+                        }
+                    }
+                    else if (StrContains(HTTP_req, "GET /D987654.CSV")) {
+                      D1.toCharArray(te,12);
+                      if(SD.exists(te)){
+                        webFile = SD.open(te);
+                        if (webFile) {
+                            client.println("HTTP/1.1 200 OK");
+                            client.println("Content-Type: text/csv");
+                            client.println();
+                        }
+                      }
+                      
+                    }
+                    else {
+                        pi.toCharArray(r,12);
+                      if(SD.exists(r)){
+                        Serial.println("Exists");
+                        webFile = SD.open(r);
+                        if (webFile) {
+                            client.println("HTTP/1.1 200 OK");
+                            client.println("Content-Type: text/csv");
+                            client.println();
+                        }
+                      }
+                } 
+                else if (c != '\r') {
+                    // a text character was received from client
+                    currentLineIsBlank = false;
+                }
+            } // end if (client.available())
+        } // end while (client.connected())
+        delay(1);      // give the web browser time to receive the data
+        client.stop(); // close the connection
+    } // end if (client)
+
+    //____________Time___________//
+    
+    readDS3231time(&sec,&minute,&hour,&weekday,&date,&month,&year);
+    UpdateStrings();
+    char d1string[12]="";
+    D1.toCharArray(d1string,12);
+    if(!SD.exists(d1string) && hour>=6){
+      
+      webFile=SD.open(d1string,FILE_WRITE);
+                        webFile.println();
+                        webFile.print("kWh,");
+                        webFile.print(dateString);
+                        webFile.print(",");
+                        webFile.print(timeString);
+                        for(int i=0;i<TOTAL_NO_OF_PACKETS/2;i++){
+                          webFile.print(",");
+                          webFile.print(uint2float(regs[2*i],regs[2*i+1]));
+                        }
+                        webFile.println();
+                        webFile.print("Run.h,");
+                        webFile.print(dateString);
+                        webFile.print(",");
+                        webFile.print(timeString);
+                        for(int j=TOTAL_NO_OF_PACKETS/2;j<TOTAL_NO_OF_PACKETS;j++){
+                          webFile.print(",");
+                          webFile.print(char2float(regs[2*j],regs[2*j+1]));
+                        }
+                        webFile.close();
+
+
+void UpdateStrings(){
+  readDS3231time(&sec,&minute,&hour,&weekday,&date,&month,&year);
+  String n="D123456.CSV";//positions 1,2,3,4,5,6
+  n[0]='D';
+  n[7]='.';
+  n[8]='C';
+  n[9]='S';
+  n[10]='V';
+  int j=(int(date)/10)+48;
+  n[1]=j;
+  j=(int(date)%10)+48;
+  n[2]=j;
+  j=(int(month)/10)+48;
+  n[3]=j;
+  j=(int(month)%10)+48;
+  n[4]=j;
+  j=(int(year)/10)+48;
+  n[5]=j;
+  j=(int(year)%10)+48;
+  n[6]=j;
+  n[11]=3;
+
+  D1=n;
+
+  dateString[0]=(int(date)/10)+48;
+  dateString[1]=(int(date)%10)+48;
+  dateString[3]=(int(month)/10)+48;
+  dateString[4]=(int(month)%10)+48;
+  dateString[6]=(int(year)/10)+48;
+  dateString[7]=(int(year)%10)+48;
+
+  timeString[0]=(int(hour)/10)+48;
+  timeString[1]=(int(hour)%10)+48;
+  timeString[3]=(int(minute)/10)+48;
+  timeString[4]=(int(minute)%10)+48;
+  timeString[6]=(int(sec)/10)+48;
+  timeString[7]=(int(sec)%10)+48;
+}
+
+
+

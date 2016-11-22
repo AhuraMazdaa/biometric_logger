@@ -88,6 +88,7 @@ void printToLcd(String s1,String s2);
 bool getTime(int &_year,int &_month,int &_date,int &_hours,int &_mins,int &_secs);
 //format for setting time is yyyymmddhhmmss 'A' for enter and [B,C,D,*,#] to cancel
 void shut_down();
+void updateStrings();
 //*****************************************************************************************//
 
 //************************************Global Variables*************************************//
@@ -114,6 +115,10 @@ char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursd
 
 DateTime datetimenow;
 int _year, _month, _date, _hours, _mins, _secs;
+String _datetimenow="D123456.CSV";
+String dateString="00/00/00";
+String timeString="00:00:00";
+String _weekday="";
 
 bool _cancel=false;
 
@@ -365,4 +370,54 @@ bool getTime(int &_year,int &_month,int &_date,int &_hours,int &_mins,int &_secs
 
   lcd.clear();
   return _cancel;
+}
+
+void updateStrings(){
+  //readDS3231time(&sec,&minute,&hour,&weekday,&date,&month,&year);
+  DateTime now=rtc.now();
+  String n="D123456.CSV";//positions 1,2,3,4,5,6
+  _year = now.year();
+  _month = now.month();
+  _date = now.day();
+  _weekday.toCharArray(daysOfTheWeek[now.dayOfTheWeek()],12);
+  _hours = now.hour();
+  _mins = now.minute();
+  _secs = now.second();
+  
+  n[0]='D';
+  n[7]='.';
+  n[8]='C';
+  n[9]='S';
+  n[10]='V';
+  
+  int j=(int(_date)/10)+48;
+  n[1]=j;
+  j=(int(_date)%10)+48;
+  n[2]=j;
+  j=(int(_month)/10)+48;
+  n[3]=j;
+  j=(int(_month)%10)+48;
+  n[4]=j;
+  j=((int(_year)%100)/10)+48;
+  n[5]=j;
+  j=(int(_year)%10)+48;
+  n[6]=j;
+  n[11]=3;
+
+  _datetimenow=n;
+
+  dateString[0]=(int(_date)/10)+48;
+  dateString[1]=(int(_date)%10)+48;
+  dateString[3]=(int(_month)/10)+48;
+  dateString[4]=(int(_month)%10)+48;
+  dateString[6]=((int(_year)%100)/10)+48;
+  dateString[7]=(int(_year)%10)+48;
+
+  timeString[0]=(int(_hours)/10)+48;
+  timeString[1]=(int(_hours)%10)+48;
+  timeString[3]=(int(_mins)/10)+48;
+  timeString[4]=(int(_mins)%10)+48;
+  timeString[6]=(int(_secs)/10)+48;
+  timeString[7]=(int(_secs)%10)+48;
+  
 }

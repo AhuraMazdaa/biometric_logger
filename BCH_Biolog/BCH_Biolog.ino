@@ -86,6 +86,7 @@
 //******************************** Function Definitions ***********************************//
 void printToLcd(String s1,String s2);
 bool getTime(int &_year,int &_month,int &_date,int &_hours,int &_mins,int &_secs);
+//format for setting time is yyyymmddhhmmss 'A' for enter and [B,C,D,*,#] to cancel
 void shut_down();
 //*****************************************************************************************//
 
@@ -111,9 +112,12 @@ Adafruit_Fingerprint finger = Adafruit_Fingerprint(&mySerial);
 RTC_DS3231 rtc;
 char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
-DateTime date_set;
+DateTime datetimenow;
+int _year, _month, _date, _hours, _mins, _secs;
 
 bool _cancel=false;
+
+char mode_key = NULL;
 //*****************************************************************************************//
 
 void setup() {
@@ -139,7 +143,7 @@ void setup() {
     // January 21, 2014 at 3am you would call:
 
     printToLcd("RTC Lost Power!","lets set the time.");
-    int _year, _month, _date, _hours, _mins, _secs;
+    
     _cancel=getTime(_year,_month,_date,_hours,_mins,_secs);
     if(!_cancel){
       rtc.adjust(DateTime(_year, _month, _date, _hours, _mins, _secs));
@@ -160,7 +164,12 @@ void setup() {
 void loop() {
   
   lcd.clear();
-  char mode_key = kpd.getKey();
+  printToLcd("Enter","Mode:");
+  mode_key = NULL;
+  do{
+    char mode_key = kpd.getKey();
+  }while(mode_key==NULL);
+  
 
   switch(mode_key){
 
@@ -257,10 +266,11 @@ void printToLcd(String s1,String s2){
 }
 
 bool getTime(int &_year,int &_month,int &_date,int &_hours,int &_mins,int &_secs){
+  _cancel=false;
   lcd.setCursor(0,0);
   lcd.print("Enter Time:");
   lcd.setCursor(0,1);
-  bool cmplt= false;
+  //bool cmplt= false;
   int count=0;
   unsigned long num=0;
   byte digit=0;
@@ -276,33 +286,53 @@ bool getTime(int &_year,int &_month,int &_date,int &_hours,int &_mins,int &_secs
     switch(k){
       case '1':
         digit=1;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
         break;
       case '2':
         digit=2;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
         break;
       case '3':
         digit=3;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
         break;
       case '4':
         digit=4;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
         break;
       case '5':
         digit=5;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
         break;
       case '6':
         digit=6;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
         break;
       case '7':
         digit=7;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
         break;
       case '8':
         digit=8;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
         break;
       case '9':
         digit=9;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
         break;
       case '0':
         digit=0;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
         break;
       default:
         Serial.println("digit exception!");
@@ -310,6 +340,13 @@ bool getTime(int &_year,int &_month,int &_date,int &_hours,int &_mins,int &_secs
     }
     num=num*10 + digit;
     count++;
+  }
+
+  delay(1000);
+
+  if(count<14){
+    lcd.clear();
+    return true;
   }
 
   Serial.println(num);
@@ -325,6 +362,7 @@ bool getTime(int &_year,int &_month,int &_date,int &_hours,int &_mins,int &_secs
   _mins=num/_mins_den;
   num=num/_mins_den;
   _secs=num;
-  
+
+  lcd.clear();
   return _cancel;
 }

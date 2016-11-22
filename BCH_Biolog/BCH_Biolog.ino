@@ -57,8 +57,8 @@
 //***************************************Libraries******************************************//
 #include <LiquidCrystal.h>
 #include <Wire.h>
-#include <Adafruit_Fingerprint.h>
-#include <RTClib.h>
+#include "Adafruit_Fingerprint.h"
+#include "RTClib.h"
 #include <Keypad.h>
 #include <EEPROM.h>
 #include <SPI.h>
@@ -107,6 +107,7 @@ RTC_DS3231 rtc;
 char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
 DateTime date_set;
+DateTime datetimenow;
 //*****************************************************************************************//
 
 void setup() {
@@ -150,6 +151,7 @@ void loop() {
     //Entry
     //Serial.println("Entry");
     printToLcd("Entry","");
+    
     break;
 
   case _Exit_:

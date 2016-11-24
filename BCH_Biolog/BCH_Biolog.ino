@@ -175,13 +175,13 @@ void loop() {
     mode_key = kpd.getKey();
   }while(mode_key==NULL);
   
-
   switch(mode_key){
 
   case _Entry_:
     //Entry
     //Serial.println("Entry");
     printToLcd("Entry","");
+    Serial.println("Entry");
     updateStrings();
     break;
 
@@ -222,20 +222,12 @@ void loop() {
     int _year, _month, _date, _hours, _mins, _secs;
     _cancel = getTime(_year,_month,_date,_hours,_mins,_secs);
     if(!_cancel){
-      Serial.println(_year);
-      Serial.println(_month);
-      Serial.println(_date);
-      Serial.println(_hours);
-      Serial.println(_mins);
-      Serial.println(_secs);
       rtc.adjust(DateTime(_year, _month, _date, _hours, _mins, _secs));
     }
     else{
-      lcd.clear();
-      lcd.setCursor(0,0);
-      lcd.print("Canceled!");
+      printToLcd("Cancelled!","");
       //set some default date
-      rtc.adjust(DateTime(2016,11,14,6,30,0));
+      //rtc.adjust(DateTime(2016,11,14,6,30,0));
     }
     break;
 
@@ -359,6 +351,7 @@ bool getTime(int &_year,int &_month,int &_date,int &_hours,int &_mins,int &_secs
   //num=num/_date_den;
 
   num=0;
+  
   Serial.println(num);
 
   while(count<14){
@@ -431,14 +424,14 @@ bool getTime(int &_year,int &_month,int &_date,int &_hours,int &_mins,int &_secs
     count++;
   }
 
-  Serial.println(num);
+  //Serial.println(num);
   
   _hours=num/_hours_den;
-  num=num/_hours_den;
+  num=num%_hours_den;
   _mins=num/_mins_den;
-  num=num/_mins_den;
+  num=num%_mins_den;
   _secs=num;
-
+  printToLcd("New Time","Updated!");
   lcd.clear();
 
   return _cancel;
@@ -498,7 +491,4 @@ void updateStrings(){
   Serial.println(timeString);
   Serial.print("_datetimenow : ");
   Serial.println(_datetimenow);
-  Serial.println(now.year());
-  Serial.println(now.hour());
-  Serial.println(now.day());
 }

@@ -76,12 +76,19 @@
 #define _Mem_Left_ '3'
 #define _Set_Time_ '4'
 #define _Shutdown_ '5'
+#define _year_den 10000 //10000000000
+#define _month_den 100 //100000000
+#define _date_den 1 //1000000
+#define _hours_den 10000
+#define _mins_den 100
 //*****************************************************************************************//
 
 //******************************** Function Definitions ***********************************//
 void printToLcd(String s1,String s2);
-uint8_t getFingerprintID();
+bool getTime(int &_year,int &_month,int &_date,int &_hours,int &_mins,int &_secs);
+//format for setting time is yyyymmddhhmmss 'A' for enter and [B,C,D,*,#] to cancel
 void shut_down();
+void updateStrings();
 //*****************************************************************************************//
 
 //************************************Global Variables*************************************//
@@ -106,7 +113,16 @@ Adafruit_Fingerprint finger = Adafruit_Fingerprint(&mySerial);
 RTC_DS3231 rtc;
 char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
-DateTime date_set;
+DateTime datetimenow;
+int _year, _month, _date, _hours, _mins, _secs;
+String _datetimenow="D123456.CSV";
+String dateString="00/00/00";
+String timeString="00:00:00";
+String _weekday="";
+
+bool _cancel=false;
+
+char mode_key = NULL;
 //*****************************************************************************************//
 
 void setup() {
@@ -122,25 +138,29 @@ void setup() {
   lcd.setCursor(0,1);
   lcd.print("In Progress...");
 
-  if (finger.verifyPassword()) {
-    lcd.print("Found fing sensor!");
-    delay(500);
-  } else {
-    lcd.print("fing init failed");
-    while (1);
-  }
-
   finger.begin(9600);
   rtc.begin();
-  
   if (rtc.lostPower()) {
-    lcd.println("RTC lost power, lets set the time!");
-    delay(3000);
+    //lcd.print("RTC lost power, lets set the time!");
     // following line sets the RTC to the date & time this sketch was compiled
     //rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
     // This line sets the RTC with an explicit date & time, for example to set
     // January 21, 2014 at 3am you would call:
-    // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
+
+    printToLcd("RTC Lost Power!","lets set the time.");
+    
+    _cancel=getTime(_year,_month,_date,_hours,_mins,_secs);
+    if(!_cancel){
+      rtc.adjust(DateTime(_year, _month, _date, _hours, _mins, _secs));
+    }
+    else{
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("Canceled!");
+      //set some default date
+      rtc.adjust(DateTime(2016,11,14,6,30,0));
+      _cancel=false;
+    }
   }
 
   delay(1);
@@ -149,7 +169,12 @@ void setup() {
 void loop() {
   
   lcd.clear();
-  char mode_key = kpd.getKey();
+  printToLcd("Enter","Mode:");
+  mode_key = NULL;
+  do{
+    mode_key = kpd.getKey();
+  }while(mode_key==NULL);
+  
 
   switch(mode_key){
 
@@ -157,6 +182,7 @@ void loop() {
     //Entry
     //Serial.println("Entry");
     printToLcd("Entry","");
+    updateStrings();
     break;
 
   case _Exit_:
@@ -177,12 +203,6 @@ void loop() {
   case _Identify_:
     //Identify Vol
     //Serial.println("Identify Vol");
-    lcd.clear();
-    printToLcd("Identifying...","Place finger!");
-    uint8_t x;
-    x = getFingerprintID();
-    
-    
     break;
 
   case _Admin_:
@@ -198,6 +218,25 @@ void loop() {
   case _Set_Time_:
     //Set Time
     //Serial.println("Set Time");
+    printToLcd("Set Time in","yyyymmddhhmmss");
+    int _year, _month, _date, _hours, _mins, _secs;
+    _cancel = getTime(_year,_month,_date,_hours,_mins,_secs);
+    if(!_cancel){
+      Serial.println(_year);
+      Serial.println(_month);
+      Serial.println(_date);
+      Serial.println(_hours);
+      Serial.println(_mins);
+      Serial.println(_secs);
+      rtc.adjust(DateTime(_year, _month, _date, _hours, _mins, _secs));
+    }
+    else{
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("Canceled!");
+      //set some default date
+      rtc.adjust(DateTime(2016,11,14,6,30,0));
+    }
     break;
 
   case _Shutdown_:
@@ -225,76 +264,241 @@ void shut_down(){
 }
 
 void printToLcd(String s1,String s2){
+  lcd.clear();
   lcd.setCursor(0,0);
   lcd.print(s1);
   lcd.setCursor(0,1);
   lcd.print(s2);
-  delay(1000);
+  delay(2000);
 }
 
-uint8_t getFingerprintID() {
-  uint8_t p = finger.getImage();
-  switch (p) {
-    case FINGERPRINT_OK:
-      printToLcd("Image Taken!","");
-      break;
-    case FINGERPRINT_NOFINGER:
-      printToLcd("No finger detected","");
-      return p;
-    case FINGERPRINT_PACKETRECIEVEERR:
-      printToLcd("Communication","Error");
-      return p;
-    case FINGERPRINT_IMAGEFAIL:
-      printToLcd("Imaging error","");
-      return p;
-    default:
-      printToLcd("Unknown error","");
-      return p;
+bool getTime(int &_year,int &_month,int &_date,int &_hours,int &_mins,int &_secs){
+  _cancel=false;
+  
+  //bool cmplt= false;
+  int count=0;
+  unsigned long num=0;
+  byte digit=0;
+  char k=0;
+  
+  while(count<8){
+  
+    do{
+        k=kpd.getKey();
+    }while(k==NULL);
+
+    if(k=='A' || k=='B' || k=='C' || k=='D' || k=='*' || k=='#'){
+      _cancel=true;
+      return _cancel;
+    }
+    switch(k){
+      case '1':
+        digit=1;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      case '2':
+        digit=2;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      case '3':
+        digit=3;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      case '4':
+        digit=4;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      case '5':
+        digit=5;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      case '6':
+        digit=6;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      case '7':
+        digit=7;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      case '8':
+        digit=8;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      case '9':
+        digit=9;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      case '0':
+        digit=0;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      default:
+        Serial.println("digit exception!");
+        break;
+    }
+    num=num*10 + digit;
+    Serial.println(num);
+    count++;
   }
 
-  // OK success!
+  _year=num/_year_den;
+  num=num%_year_den;
+  _month=num/_month_den;
+  num=num%_month_den;
+  _date=num/_date_den;
+  //num=num/_date_den;
 
-  p = finger.image2Tz();
-  switch (p) {
-    case FINGERPRINT_OK:
-      printToLcd("Image converted","");
-      break;
-    case FINGERPRINT_IMAGEMESS:
-      printToLcd("Image too messy","");
-      return p;
-    case FINGERPRINT_PACKETRECIEVEERR:
-      printToLcd("Communication","Error");
-      return p;
-    case FINGERPRINT_FEATUREFAIL:
-      printToLcd("Could not find","fingerprint features");
-      return p;
-    case FINGERPRINT_INVALIDIMAGE:
-      printToLcd("Could not find","fingerprint features");
-      return p;
-    default:
-      printToLcd("Unknown error","");
-      return p;
+  num=0;
+  Serial.println(num);
+
+  while(count<14){
+  
+    do{
+        k=kpd.getKey();
+    }while(k==NULL);
+
+    if(k=='A' || k=='B' || k=='C' || k=='D' || k=='*' || k=='#'){
+      _cancel=true;
+      return _cancel;
+    }
+    switch(k){
+      case '1':
+        digit=1;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      case '2':
+        digit=2;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      case '3':
+        digit=3;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      case '4':
+        digit=4;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      case '5':
+        digit=5;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      case '6':
+        digit=6;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      case '7':
+        digit=7;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      case '8':
+        digit=8;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      case '9':
+        digit=9;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      case '0':
+        digit=0;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      default:
+        Serial.println("digit exception!");
+        break;
+    }
+    num=num*10 + digit;
+    Serial.println(num);
+    count++;
   }
+
+  Serial.println(num);
   
-  // OK converted!
-  p = finger.fingerFastSearch();
-  if (p == FINGERPRINT_OK) {
-    printToLcd("Found a print match!","");
-  } else if (p == FINGERPRINT_PACKETRECIEVEERR) {
-    printToLcd("Communication error","");
-    return p;
-  } else if (p == FINGERPRINT_NOTFOUND) {
-    printToLcd("Did not find","a match");
-    return p;
-  } else {
-    printToLcd("Unknown error","");
-    return p;
-  }   
-  
-  // found a match!
+  _hours=num/_hours_den;
+  num=num/_hours_den;
+  _mins=num/_mins_den;
+  num=num/_mins_den;
+  _secs=num;
+
   lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print("Found ID #"); lcd.print(finger.fingerID);
-  lcd.setCursor(0,1);
-  lcd.print(" w/ conf="); lcd.print(finger.confidence); 
+
+  return _cancel;
+}
+
+void updateStrings(){
+  //readDS3231time(&sec,&minute,&hour,&weekday,&date,&month,&year);
+  DateTime now=rtc.now();
+  String n="D123456.CSV";//positions 1,2,3,4,5,6
+  _year = now.year();
+  _month = now.month();
+  _date = now.day();
+  _weekday.toCharArray(daysOfTheWeek[now.dayOfTheWeek()],12);
+  _hours = now.hour();
+  _mins = now.minute();
+  _secs = now.second();
+  
+  n[0]='D';
+  n[7]='.';
+  n[8]='C';
+  n[9]='S';
+  n[10]='V';
+  
+  int j=(int(_date)/10)+48;
+  n[1]=j;
+  j=(int(_date)%10)+48;
+  n[2]=j;
+  j=(int(_month)/10)+48;
+  n[3]=j;
+  j=(int(_month)%10)+48;
+  n[4]=j;
+  j=((int(_year)%100)/10)+48;
+  n[5]=j;
+  j=(int(_year)%10)+48;
+  n[6]=j;
+  //n[11]=3;
+
+  _datetimenow=n;
+
+  dateString[0]=(int(_date)/10)+48;
+  dateString[1]=(int(_date)%10)+48;
+  dateString[3]=(int(_month)/10)+48;
+  dateString[4]=(int(_month)%10)+48;
+  dateString[6]=((int(_year)%100)/10)+48;
+  dateString[7]=(int(_year)%10)+48;
+
+  timeString[0]=(int(_hours)/10)+48;
+  timeString[1]=(int(_hours)%10)+48;
+  timeString[3]=(int(_mins)/10)+48;
+  timeString[4]=(int(_mins)%10)+48;
+  timeString[6]=(int(_secs)/10)+48;
+  timeString[7]=(int(_secs)%10)+48;
+
+  Serial.print("dateString : ");
+  Serial.println(dateString);
+  Serial.print("timeString : ");
+  Serial.println(timeString);
+  Serial.print("_datetimenow : ");
+  Serial.println(_datetimenow);
+  Serial.println(now.year());
+  Serial.println(now.hour());
+  Serial.println(now.day());
 }

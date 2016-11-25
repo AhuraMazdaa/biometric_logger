@@ -76,11 +76,14 @@
 #define _Mem_Left_ '3'
 #define _Set_Time_ '4'
 #define _Shutdown_ '5'
-#define _year_den 10000000000
-#define _month_den 100000000
-#define _date_den 1000000
+#define _year_den 10000 //10000000000
+#define _month_den 100 //100000000
+#define _date_den 1 //1000000
 #define _hours_den 10000
 #define _mins_den 100
+#define _max_address 250
+#define _psswd_ 1992
+#define _psswd_address_
 //*****************************************************************************************//
 
 //******************************** Function Definitions ***********************************//
@@ -123,6 +126,10 @@ String _weekday="";
 bool _cancel=false;
 
 char mode_key = NULL;
+int address = 0;//address of stored fingerprint
+byte security = 0;//determines the kind of user
+
+File logs;
 //*****************************************************************************************//
 
 void setup() {
@@ -172,16 +179,18 @@ void loop() {
   printToLcd("Enter","Mode:");
   mode_key = NULL;
   do{
-    char mode_key = kpd.getKey();
+    mode_key = kpd.getKey();
   }while(mode_key==NULL);
   
-
   switch(mode_key){
 
   case _Entry_:
     //Entry
-    //Serial.println("Entry");
     printToLcd("Entry","");
+    Serial.println("Entry");
+    //updateStrings();
+
+    
     break;
 
   case _Exit_:
@@ -217,24 +226,16 @@ void loop() {
   case _Set_Time_:
     //Set Time
     //Serial.println("Set Time");
-    printToLcd("Set Time in","yyyy/mm/dd/hh/mm/ss");
+    printToLcd("Set Time in","yyyymmddhhmmss");
     int _year, _month, _date, _hours, _mins, _secs;
     _cancel = getTime(_year,_month,_date,_hours,_mins,_secs);
     if(!_cancel){
-      Serial.println(_year);
-      Serial.println(_month);
-      Serial.println(_date);
-      Serial.println(_hours);
-      Serial.println(_mins);
-      Serial.println(_secs);
       rtc.adjust(DateTime(_year, _month, _date, _hours, _mins, _secs));
     }
     else{
-      lcd.clear();
-      lcd.setCursor(0,0);
-      lcd.print("Canceled!");
+      printToLcd("Cancelled!","");
       //set some default date
-      rtc.adjust(DateTime(2016,11,14,6,30,0));
+      //rtc.adjust(DateTime(2016,11,14,6,30,0));
     }
     break;
 
@@ -263,6 +264,7 @@ void shut_down(){
 }
 
 void printToLcd(String s1,String s2){
+  lcd.clear();
   lcd.setCursor(0,0);
   lcd.print(s1);
   lcd.setCursor(0,1);
@@ -272,19 +274,20 @@ void printToLcd(String s1,String s2){
 
 bool getTime(int &_year,int &_month,int &_date,int &_hours,int &_mins,int &_secs){
   _cancel=false;
-  lcd.setCursor(0,0);
-  lcd.print("Enter Time:");
-  lcd.setCursor(0,1);
+  
   //bool cmplt= false;
   int count=0;
   unsigned long num=0;
   byte digit=0;
-  while(count<14){
-    
-    char k=kpd.getKey();
-    if(k=='A')
-      break;
-    if(k=='B' || k=='C' || k=='D' || k=='*' || k=='#'){
+  char k=0;
+  
+  while(count<8){
+  
+    do{
+        k=kpd.getKey();
+    }while(k==NULL);
+
+    if(k=='A' || k=='B' || k=='C' || k=='D' || k=='*' || k=='#'){
       _cancel=true;
       return _cancel;
     }
@@ -344,31 +347,101 @@ bool getTime(int &_year,int &_month,int &_date,int &_hours,int &_mins,int &_secs
         break;
     }
     num=num*10 + digit;
+    Serial.println(num);
     count++;
   }
 
-  delay(1000);
-
-  if(count<14){
-    lcd.clear();
-    return true;
-  }
-
-  Serial.println(num);
-  
   _year=num/_year_den;
   num=num%_year_den;
   _month=num/_month_den;
   num=num%_month_den;
   _date=num/_date_den;
-  num=num/_date_den;
-  _hours=num/_hours_den;
-  num=num/_hours_den;
-  _mins=num/_mins_den;
-  num=num/_mins_den;
-  _secs=num;
+  //num=num/_date_den;
 
+  num=0;
+  
+  Serial.println(num);
+
+  while(count<14){
+  
+    do{
+        k=kpd.getKey();
+    }while(k==NULL);
+
+    if(k=='A' || k=='B' || k=='C' || k=='D' || k=='*' || k=='#'){
+      _cancel=true;
+      return _cancel;
+    }
+    switch(k){
+      case '1':
+        digit=1;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      case '2':
+        digit=2;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      case '3':
+        digit=3;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      case '4':
+        digit=4;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      case '5':
+        digit=5;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      case '6':
+        digit=6;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      case '7':
+        digit=7;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      case '8':
+        digit=8;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      case '9':
+        digit=9;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      case '0':
+        digit=0;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      default:
+        Serial.println("digit exception!");
+        break;
+    }
+    num=num*10 + digit;
+    Serial.println(num);
+    count++;
+  }
+
+  //Serial.println(num);
+  
+  _hours=num/_hours_den;
+  num=num%_hours_den;
+  _mins=num/_mins_den;
+  num=num%_mins_den;
+  _secs=num;
+  printToLcd("New Time","Updated!");
   lcd.clear();
+
   return _cancel;
 }
 
@@ -402,7 +475,7 @@ void updateStrings(){
   n[5]=j;
   j=(int(_year)%10)+48;
   n[6]=j;
-  n[11]=3;
+  //n[11]=3;
 
   _datetimenow=n;
 
@@ -419,5 +492,11 @@ void updateStrings(){
   timeString[4]=(int(_mins)%10)+48;
   timeString[6]=(int(_secs)/10)+48;
   timeString[7]=(int(_secs)%10)+48;
-  
+
+  Serial.print("dateString : ");
+  Serial.println(dateString);
+  Serial.print("timeString : ");
+  Serial.println(timeString);
+  Serial.print("_datetimenow : ");
+  Serial.println(_datetimenow);
 }

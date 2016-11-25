@@ -81,6 +81,7 @@
 #define _date_den 1 //1000000
 #define _hours_den 10000
 #define _mins_den 100
+#define _max_address 250
 //*****************************************************************************************//
 
 //******************************** Function Definitions ***********************************//
@@ -123,6 +124,10 @@ String _weekday="";
 bool _cancel=false;
 
 char mode_key = NULL;
+int address = 0;//address of stored fingerprint
+byte security = 0;//determines the kind of user
+
+File logs;
 //*****************************************************************************************//
 
 void setup() {
@@ -183,7 +188,6 @@ void loop() {
     Serial.println("Entry");
     //updateStrings();
 
-    
     
     break;
 

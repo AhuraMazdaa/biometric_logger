@@ -179,10 +179,12 @@ void loop() {
 
   case _Entry_:
     //Entry
-    //Serial.println("Entry");
     printToLcd("Entry","");
     Serial.println("Entry");
-    updateStrings();
+    //updateStrings();
+
+    
+    
     break;
 
   case _Exit_:

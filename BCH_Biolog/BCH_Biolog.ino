@@ -82,8 +82,12 @@
 #define _hours_den 10000
 #define _mins_den 100
 #define _max_address 250
-#define _psswd_ 1992
-#define _psswd_address_
+#define _year_den 10000000000
+#define _month_den 100000000
+#define _date_den 1000000
+#define _hours_den 10000
+#define _mins_den 100
+
 //*****************************************************************************************//
 
 //******************************** Function Definitions ***********************************//
@@ -126,10 +130,12 @@ String _weekday="";
 bool _cancel=false;
 
 char mode_key = NULL;
+
 int address = 0;//address of stored fingerprint
 byte security = 0;//determines the kind of user
 
 File logs;
+
 //*****************************************************************************************//
 
 void setup() {
@@ -181,7 +187,7 @@ void loop() {
   do{
     mode_key = kpd.getKey();
   }while(mode_key==NULL);
-  
+
   switch(mode_key){
 
   case _Entry_:
@@ -236,6 +242,24 @@ void loop() {
       printToLcd("Cancelled!","");
       //set some default date
       //rtc.adjust(DateTime(2016,11,14,6,30,0));
+    printToLcd("Set Time in","yyyy/mm/dd/hh/mm/ss");
+    int _year, _month, _date, _hours, _mins, _secs;
+    _cancel = getTime(_year,_month,_date,_hours,_mins,_secs);
+    if(!_cancel){
+      Serial.println(_year);
+      Serial.println(_month);
+      Serial.println(_date);
+      Serial.println(_hours);
+      Serial.println(_mins);
+      Serial.println(_secs);
+      rtc.adjust(DateTime(_year, _month, _date, _hours, _mins, _secs));
+    }
+    else{
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("Canceled!");
+      //set some default date
+      rtc.adjust(DateTime(2016,11,14,6,30,0));
     }
     break;
 
@@ -250,8 +274,8 @@ void loop() {
   
   break;
 
+    }
   }
-  
 }
 
 void shut_down(){
@@ -275,6 +299,9 @@ void printToLcd(String s1,String s2){
 bool getTime(int &_year,int &_month,int &_date,int &_hours,int &_mins,int &_secs){
   _cancel=false;
   
+  lcd.setCursor(0,0);
+  lcd.print("Enter Time:");
+  lcd.setCursor(0,1);
   //bool cmplt= false;
   int count=0;
   unsigned long num=0;
@@ -288,6 +315,12 @@ bool getTime(int &_year,int &_month,int &_date,int &_hours,int &_mins,int &_secs
     }while(k==NULL);
 
     if(k=='A' || k=='B' || k=='C' || k=='D' || k=='*' || k=='#'){
+  while(count<14){
+    
+    char k=kpd.getKey();
+    if(k=='A')
+      break;
+    if(k=='B' || k=='C' || k=='D' || k=='*' || k=='#'){
       _cancel=true;
       return _cancel;
     }
@@ -351,6 +384,18 @@ bool getTime(int &_year,int &_month,int &_date,int &_hours,int &_mins,int &_secs
     count++;
   }
 
+    count++;
+  }
+
+  delay(1000);
+
+  if(count<14){
+    lcd.clear();
+    return true;
+  }
+
+  Serial.println(num);
+  
   _year=num/_year_den;
   num=num%_year_den;
   _month=num/_month_den;
@@ -442,7 +487,16 @@ bool getTime(int &_year,int &_month,int &_date,int &_hours,int &_mins,int &_secs
   printToLcd("New Time","Updated!");
   lcd.clear();
 
+  num=num/_date_den;
+  _hours=num/_hours_den;
+  num=num/_hours_den;
+  _mins=num/_mins_den;
+  num=num/_mins_den;
+  _secs=num;
+
+  lcd.clear();
   return _cancel;
+  }
 }
 
 void updateStrings(){
@@ -477,6 +531,8 @@ void updateStrings(){
   n[6]=j;
   //n[11]=3;
 
+  n[11]=3;
+
   _datetimenow=n;
 
   dateString[0]=(int(_date)/10)+48;
@@ -499,4 +555,5 @@ void updateStrings(){
   Serial.println(timeString);
   Serial.print("_datetimenow : ");
   Serial.println(_datetimenow);
+  
 }

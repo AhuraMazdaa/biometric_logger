@@ -81,13 +81,13 @@
 #define _date_den 1 //1000000
 #define _hours_den 10000
 #define _mins_den 100
-#define _max_address 250
-#define _year_den 10000000000
-#define _month_den 100000000
-#define _date_den 1000000
-#define _hours_den 10000
 #define _mins_den 100
-
+#define _hours_den 10000
+#define _date_den 1000000
+#define _month_den 100000000
+#define _year_den 10000000000
+#define _max_address 250
+#define _max_eeprom_address_ 4095
 //*****************************************************************************************//
 
 //******************************** Function Definitions ***********************************//

@@ -82,7 +82,6 @@
 #define _hours_den 10000
 #define _mins_den 100
 #define _max_address_ 250
-#define _psswd_ 1992
 #define _psswd_add_ 4000
 //*****************************************************************************************//
 
@@ -92,6 +91,7 @@ bool getTime(int &_year,int &_month,int &_date,int &_hours,int &_mins,int &_secs
 //format for setting time is yyyymmddhhmmss 'A' for enter and [B,C,D,*,#] to cancel
 void shut_down();
 void updateStrings();
+bool password();
 //*****************************************************************************************//
 
 //************************************Global Variables*************************************//
@@ -129,9 +129,9 @@ char mode_key = NULL;
 
 int address = 0;//address of stored fingerprint
 byte security = 0;//determines the kind of user
-
+int memloc=0;
 File logs;
-
+char pass[4]={'1','9','9','2'};
 //*****************************************************************************************//
 
 void setup() {
@@ -224,6 +224,13 @@ void loop() {
   case _Mem_Left_:
     //Memory Left
     //Serial.println("Mem Left");
+    for(int i=1;i<=_max_address_;i++){
+      if(EEPROM.read(i)!=0){
+        memloc++;
+      }
+    }
+    printToLcd("Memory left =",String(_max_address_ - memloc));
+    memloc=0;
     break;
 
   case _Set_Time_:
@@ -554,3 +561,30 @@ void updateStrings(){
   Serial.println(_datetimenow);
   
 }
+
+bool password(){
+  char pswd[4];
+  char c=0;
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("Enter pswd:");
+  lcd.setCursor(0,1);
+  for(int i=0;i<4;i++){
+    do{
+      c=kpd.getKey();
+    }while(c==NULL);
+    pswd[i]=c;
+    lcd.print('*');
+  }
+
+  for(int i=0;i<4;i++){
+    if(pswd[i]==pass[i]){
+      continue;
+    }
+    else{
+      return false;
+    }
+  }
+  return true;
+}
+

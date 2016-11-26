@@ -93,6 +93,7 @@ void shut_down(); // just to be sure we dont switch off between a write cycle
 void updateStrings(); // Updates _datetimenow , dateString , timeString
 bool password(); //returns true if passwd is correct
 int free_mem_loc(); //returns minimum free location in EEPROM
+void print_occupied_locs();
 //*****************************************************************************************//
 
 //************************************Global Variables*************************************//
@@ -168,7 +169,7 @@ void setup() {
       lcd.setCursor(0,0);
       lcd.print("Canceled!");
       //set some default date
-      rtc.adjust(DateTime(2016,11,14,6,30,0));
+      //rtc.adjust(DateTime(2016,11,14,6,30,0));
       _cancel=false;
     }
   }
@@ -232,6 +233,7 @@ void loop() {
     }
     printToLcd("Memory left =",String(_max_address_ - memloc));
     memloc=0;
+    print_occupied_locs();
     break;
 
   case _Set_Time_:
@@ -603,5 +605,21 @@ int free_mem_loc(){
     }
   }
   return location; //with value -1
+}
+
+void print_occupied_locs(){
+  for(int i=0;i<_max_address_;i++){
+    if(EEPROM.read(i+1)!=0){
+      Serial.print("Memory location ");
+      Serial.print(i+1);
+      Serial.print(" is occupied. Val = ");
+      Serial.println(EEPROM.read(i+1));
+    }
+    else{
+      Serial.print("Memory location ");
+      Serial.print(i+1);
+      Serial.println(" FREE");
+    }
+  }
 }
 

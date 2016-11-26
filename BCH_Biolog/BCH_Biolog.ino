@@ -89,9 +89,10 @@
 void printToLcd(String s1,String s2);
 bool getTime(int &_year,int &_month,int &_date,int &_hours,int &_mins,int &_secs);
 //format for setting time is yyyymmddhhmmss 'A' for enter and [B,C,D,*,#] to cancel
-void shut_down();
-void updateStrings();
-bool password();
+void shut_down(); // just to be sure we dont switch off between a write cycle
+void updateStrings(); // Updates _datetimenow , dateString , timeString
+bool password(); //returns true if passwd is correct
+int free_mem_loc(); //returns minimum free location in EEPROM
 //*****************************************************************************************//
 
 //************************************Global Variables*************************************//
@@ -176,7 +177,7 @@ void setup() {
 }
 
 void loop() {
-  
+
   lcd.clear();
   printToLcd("Enter","Mode:");
   mode_key = NULL;
@@ -190,9 +191,9 @@ void loop() {
     //Entry
     printToLcd("Entry","");
     Serial.println("Entry");
-    //updateStrings();
-
+    printToLcd("Place your","Finger");
     
+    //updateStrings();
     break;
 
   case _Exit_:
@@ -582,9 +583,25 @@ bool password(){
       continue;
     }
     else{
+      printToLcd("Password","Rejected");
       return false;
     }
   }
+  printToLcd("Password","Accepted!");
   return true;
+}
+
+int free_mem_loc(){
+  int location=-1;
+  for(int i=1;i<=_max_address_;i++){
+    if(EEPROM.read(i)==0){
+      location = i;
+      return location;
+    }
+    else{
+      continue;
+    }
+  }
+  return location; //with value -1
 }
 

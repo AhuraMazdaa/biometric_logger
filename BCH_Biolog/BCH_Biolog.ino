@@ -244,30 +244,20 @@ void loop() {
     _cancel = getTime(_year,_month,_date,_hours,_mins,_secs);
     if(!_cancel){
       rtc.adjust(DateTime(_year, _month, _date, _hours, _mins, _secs));
-    }
-    else{
-      printToLcd("Cancelled!","");
-      //set some default date
-      //rtc.adjust(DateTime(2016,11,14,6,30,0));
-    printToLcd("Set Time in","yyyy/mm/dd/hh/mm/ss");
-    int _year, _month, _date, _hours, _mins, _secs;
-    _cancel = getTime(_year,_month,_date,_hours,_mins,_secs);
-    if(!_cancel){
+
+      //Print to Serial Monitor
       Serial.println(_year);
       Serial.println(_month);
       Serial.println(_date);
       Serial.println(_hours);
       Serial.println(_mins);
       Serial.println(_secs);
-      rtc.adjust(DateTime(_year, _month, _date, _hours, _mins, _secs));
     }
     else{
-      lcd.clear();
-      lcd.setCursor(0,0);
-      lcd.print("Canceled!");
-      //set some default date
-      rtc.adjust(DateTime(2016,11,14,6,30,0));
+      printToLcd("Cancelled!","");
     }
+      //set some default date
+      //rtc.adjust(DateTime(2016,11,14,6,30,0));
     break;
 
   case _Shutdown_:
@@ -281,7 +271,7 @@ void loop() {
   
   break;
 
-    }
+    
   }
 }
 

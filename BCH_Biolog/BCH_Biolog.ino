@@ -57,13 +57,13 @@
 //***************************************Libraries******************************************//
 #include <LiquidCrystal.h>
 #include <Wire.h>
-#include <Adafruit_Fingerprint.h>
+//#include <Adafruit_Fingerprint.h>
 #include <RTClib.h>
 #include <Keypad.h>
 #include <EEPROM.h>
 #include <SPI.h>
 #include <SD.h>
-#include <SoftwareSerial.h>
+//#include <SoftwareSerial.h>
 //*****************************************************************************************//
 
 //************************************* Definitions ***************************************//
@@ -72,10 +72,11 @@
 #define _Add_New_ 'C'
 #define _Delete_ 'D'
 #define _Identify_ '1'
-#define _Admin_ '2'
+//#define _Admin_ '2' //now obsolete
 #define _Mem_Left_ '3'
 #define _Set_Time_ '4'
-#define _Shutdown_ '5'
+#define _Delete_All_ '5'
+#define _Shutdown_ '6'
 #define _year_den 10000 //10000000000
 #define _month_den 100 //100000000
 #define _date_den 1 //1000000
@@ -83,6 +84,7 @@
 #define _mins_den 100
 #define _max_address_ 250
 #define _psswd_add_ 4000
+#define busy_pin 32
 //*****************************************************************************************//
 
 //******************************** Function Definitions ***********************************//
@@ -90,10 +92,13 @@ void printToLcd(String s1,String s2);
 bool getTime(int &_year,int &_month,int &_date,int &_hours,int &_mins,int &_secs);
 //format for setting time is yyyymmddhhmmss 'A' for enter and [B,C,D,*,#] to cancel
 void shut_down(); // just to be sure we dont switch off between a write cycle
-void updateStrings(); // Updates _datetimenow , dateString , timeString
+String updateStrings(); // Updates _datetimenow , dateString , timeString
 bool password(); //returns true if passwd is correct
 int free_mem_loc(); //returns minimum free location in EEPROM
 void print_occupied_locs();
+byte getLocationKpd();
+void logIt(char x,byte vol1);
+void printDirectory(File dir, int numTabs);
 //*****************************************************************************************//
 
 //************************************Global Variables*************************************//
@@ -112,25 +117,19 @@ Keypad kpd = Keypad( makeKeymap(keys), rowPins, colPins, ROWS, COLS );
 
 LiquidCrystal lcd(36, 38, 40, 42, 44, 46);
 
-SoftwareSerial mySerial(A9, A8);
-Adafruit_Fingerprint finger = Adafruit_Fingerprint(&mySerial);
-
 RTC_DS3231 rtc;
 char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
 DateTime datetimenow;
 int _year, _month, _date, _hours, _mins, _secs;
-String _datetimenow="D123456.CSV";
-String dateString="00/00/00";
-String timeString="00:00:00";
-String _weekday="";
-
+char _file_name_[12]="D123456.CSV";
+String _weekday; 
 bool _cancel=false;
 
 char mode_key = NULL;
 
 int address = 0;//address of stored fingerprint
-byte security = 0;//determines the kind of user
+byte ID = 0;//ID#
 int memloc=0;
 File logs;
 char pass[4]={'1','9','9','2'};
@@ -139,7 +138,19 @@ char pass[4]={'1','9','9','2'};
 void setup() {
 
   Serial.begin(9600);
+  Serial.print("Initializing SD card...");
+
+  if (!SD.begin(4)) {
+    Serial.println("initialization failed!");
+    return;
+  }
+  Serial.println("initialization done.");
+  File root = SD.open("/");
+  printDirectory(root, 0);
+  Serial.println("done!");
   
+
+  pinMode(busy_pin,INPUT);
   pinMode(2,OUTPUT);
   analogWrite(2,60);
   lcd.begin(16, 2);
@@ -149,7 +160,6 @@ void setup() {
   lcd.setCursor(0,1);
   lcd.print("In Progress...");
 
-  finger.begin(9600);
   rtc.begin();
   if (rtc.lostPower()) {
     //lcd.print("RTC lost power, lets set the time!");
@@ -168,6 +178,7 @@ void setup() {
       lcd.clear();
       lcd.setCursor(0,0);
       lcd.print("Canceled!");
+      delay(500);
       //set some default date
       //rtc.adjust(DateTime(2016,11,14,6,30,0));
       _cancel=false;
@@ -189,41 +200,212 @@ void loop() {
   switch(mode_key){
 
   case _Entry_:
+  {
     //Entry
     printToLcd("Entry","");
-    Serial.println("Entry");
-    printToLcd("Place your","Finger");
+
+    //identify vol
+    Wire.beginTransmission(5);
+    Wire.write(1);
+    Wire.write(1);
+    Wire.endTransmission();
+    delay(100);
+    while(digitalRead(busy_pin)!=LOW){}
+    while(digitalRead(busy_pin)!=HIGH){}
+    //completed identifying
+    Wire.requestFrom(5,1);
+    byte vol=0;
+    vol=Wire.read();
+    Serial.print("Vol Idetified as entered is : ");
+    Serial.println(vol);
+    //begin logging vol
+    updateStrings();
+
+    //begin logging into logs file
+    Serial.println("logging entry");
+    logIt(_Entry_,vol);
     
-    //updateStrings();
     break;
+  }
 
   case _Exit_:
+  {
     //Exit
-    //Serial.println("Exit");
-    break;
+    printToLcd("Exit","");
+    Serial.println("Exit");
+    printToLcd("Place your","Finger");
+    //identify person
+    Wire.beginTransmission(5);
+    Wire.write(1);
+    Wire.write(1);
+    Wire.endTransmission();
+    delay(100);
+    while(digitalRead(busy_pin)!=LOW){}
+    while(digitalRead(busy_pin)!=HIGH){}
+    //completed identifying
+    Wire.requestFrom(5,1);
+    byte vol=0;
+    vol=Wire.read();
+    Serial.print("Vol Idetiified as exited is : ");
+    Serial.println(vol);
 
-  case _Add_New_:
-    //Add new Vol
-    //Serial.println("New Vol");
+    //begin logging into logs file
+
+    logIt(_Exit_,vol);
     
     break;
+  }
+
+  case _Add_New_:
+  {
+    //Add new Vol
+    printToLcd("Add New","Volunteer");
+    Serial.println("New Vol");
+
+    byte vol_new = getLocationKpd();
+
+    if(vol_new == -1){
+      printToLcd("Adding New","Vol Cancelled");
+    }
+    else if(vol_new > 250 || vol_new <=0){
+      printToLcd("Error Occured","While Adding");
+      break;
+    }
+    else if(EEPROM.read(vol_new)==1){
+      printToLcd("Loc already","Occupied!");
+      break;
+    }
+
+    lcd.clear();
+    lcd.setCursor(0,0);
+    lcd.print("New Vol Loc =");
+    lcd.setCursor(0,1);
+    lcd.print(vol_new);
+    delay(1000);
+
+    //enroll
+    Wire.beginTransmission(5);
+    Wire.write(2);
+    Wire.write(vol_new);
+    Wire.endTransmission();
+    delay(100);
+    while(digitalRead(busy_pin)!=LOW){}
+    while(digitalRead(busy_pin)!=HIGH){}
+    //completed enrolling
+    Wire.requestFrom(5,1);
+
+    byte response=0;
+    response=Wire.read();
+
+    Serial.print("Response received is : ");
+    Serial.println(response);
+
+    if(response==1){
+      printToLcd("Enrllng New Vol","Success!");
+      EEPROM.write(vol_new,1);
+    }
+    else{
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("Error #");
+      lcd.setCursor(0,1);
+      lcd.print(response);
+    }
+    
+    break;
+  }
 
   case _Delete_:
+  {
+    if(password()){
     //Delete Vol
-    //Serial.println("Delete Vol");
+    printToLcd("Delete","Volunteer");
+    Serial.println("Delete Vol");
+
+    byte del_vol = getLocationKpd();
+    if(del_vol == -1){
+      printToLcd("Deleting New","Vol Cancelled");
+    }
+    else if(del_vol > 250 || del_vol <=0){
+      printToLcd("Error Occured","While Deleting");
+      break;
+    }
+
+    EEPROM.write(del_vol,0);
+
+    lcd.clear();
+    lcd.setCursor(0,0);
+    lcd.print("Del Vol Loc =");
+    lcd.setCursor(0,1);
+    lcd.print(del_vol);
+    delay(1000);
+
+    Wire.beginTransmission(5);
+    Wire.write(3);
+    Wire.write(del_vol);
+    Wire.endTransmission();
+    delay(100);
+    while(digitalRead(busy_pin)!=LOW){}
+    while(digitalRead(busy_pin)!=HIGH){}
+    //completed deleting
+
+    Wire.requestFrom(5,1);
+
+    byte response=0;
+    response=Wire.read();
+
+    Serial.print("Response received is : ");
+    Serial.println(response);
+
+    if(response==1){
+      printToLcd("Deleting Vol","Success!");
+    }
+    else{
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("Error #");
+      lcd.setCursor(0,1);
+      lcd.print(response);
+    }
+    }
+    else{
+      printToLcd("Password 4","Del incorrect");
+    }
+    
     break;
+  }
 
   case _Identify_:
+  {
     //Identify Vol
     //Serial.println("Identify Vol");
-    break;
+    Wire.beginTransmission(5);
+    Wire.write(1);
+    Wire.write(1);
+    Wire.endTransmission();
+    delay(100);
+    while(digitalRead(busy_pin)!=LOW){}
+    while(digitalRead(busy_pin)!=HIGH){}
+    //completed identifying
+    Wire.requestFrom(5,1);
+    byte vol=0;
+    vol=Wire.read();
 
-  case _Admin_:
-    //Make Admin
-    //Serial.println("Make Admin");
-    break;
+    Serial.print("Vol Identified is : ");
+    Serial.println(vol);
+    
+    lcd.clear();
+    lcd.setCursor(0,0);
+    lcd.print("Volunteer #");
+    lcd.setCursor(0,1);
+    lcd.print(vol);
 
-  case _Mem_Left_:
+    delay(1000);
+    
+    break;
+  }
+
+  case _Mem_Left_:{
     //Memory Left
     //Serial.println("Mem Left");
     for(int i=1;i<=_max_address_;i++){
@@ -235,6 +417,7 @@ void loop() {
     memloc=0;
     print_occupied_locs();
     break;
+  }
 
   case _Set_Time_:
     //Set Time
@@ -260,16 +443,51 @@ void loop() {
       //rtc.adjust(DateTime(2016,11,14,6,30,0));
     break;
 
-  case _Shutdown_:
+  case _Delete_All_:{
+    if(password()){
+      for(byte i=1;i<=_max_address_;i++){
+        Wire.beginTransmission(5);
+        Wire.write(3);
+        Wire.write(i);
+        Wire.endTransmission();
+        delay(10);
+        while(digitalRead(busy_pin)!=LOW){}
+        while(digitalRead(busy_pin)!=HIGH){}
+        //completed deleting
+    
+        Wire.requestFrom(5,1);
+    
+        byte response=0;
+        response=Wire.read();
+
+        EEPROM.write(i,0);
+
+        lcd.clear();
+        lcd.setCursor(0,0);
+        lcd.print("Deleting Vols");
+        lcd.setCursor(0,1);
+        lcd.print("Progress : ");
+        lcd.setCursor(11,1);
+        double p = (i / _max_address_) * 100.0;
+        lcd.print(p);
+        lcd.print('%');
+      }
+    }
+    break;
+  }
+  
+  case _Shutdown_:{
     //Shutdown
     //Serial.println("Shutdown");
     shut_down();
     break;
+  }
 
-  default:
+  default:{
     //debugging purposes
   
   break;
+  }
 
     
   }
@@ -294,7 +512,7 @@ void printToLcd(String s1,String s2){
 }
 
 bool getTime(int &_year,int &_month,int &_date,int &_hours,int &_mins,int &_secs){
-  _cancel=false;
+  _cancel=true;
   
   lcd.setCursor(0,0);
   lcd.print("Enter Time:");
@@ -402,7 +620,7 @@ bool getTime(int &_year,int &_month,int &_date,int &_hours,int &_mins,int &_secs
 
   num=0;
   
-  Serial.println(num);
+  //Serial.println(num);
 
   while(count<14){
   
@@ -496,14 +714,14 @@ bool getTime(int &_year,int &_month,int &_date,int &_hours,int &_mins,int &_secs
   }
 }
 
-void updateStrings(){
+String updateStrings(){
   //readDS3231time(&sec,&minute,&hour,&weekday,&date,&month,&year);
   DateTime now=rtc.now();
   String n="D123456.CSV";//positions 1,2,3,4,5,6
   _year = now.year();
   _month = now.month();
   _date = now.day();
-  _weekday.toCharArray(daysOfTheWeek[now.dayOfTheWeek()],12);
+  //_weekday.toCharArray(daysOfTheWeek[now.dayOfTheWeek()],12);
   _hours = now.hour();
   _mins = now.minute();
   _secs = now.second();
@@ -526,33 +744,11 @@ void updateStrings(){
   n[5]=j;
   j=(int(_year)%10)+48;
   n[6]=j;
-  //n[11]=3;
 
-  n[11]=3;
+  n[11]=0x03;//end of text
 
-  _datetimenow=n;
+  return n;
 
-  dateString[0]=(int(_date)/10)+48;
-  dateString[1]=(int(_date)%10)+48;
-  dateString[3]=(int(_month)/10)+48;
-  dateString[4]=(int(_month)%10)+48;
-  dateString[6]=((int(_year)%100)/10)+48;
-  dateString[7]=(int(_year)%10)+48;
-
-  timeString[0]=(int(_hours)/10)+48;
-  timeString[1]=(int(_hours)%10)+48;
-  timeString[3]=(int(_mins)/10)+48;
-  timeString[4]=(int(_mins)%10)+48;
-  timeString[6]=(int(_secs)/10)+48;
-  timeString[7]=(int(_secs)%10)+48;
-
-  Serial.print("dateString : ");
-  Serial.println(dateString);
-  Serial.print("timeString : ");
-  Serial.println(timeString);
-  Serial.print("_datetimenow : ");
-  Serial.println(_datetimenow);
-  
 }
 
 bool password(){
@@ -597,6 +793,7 @@ int free_mem_loc(){
   return location; //with value -1
 }
 
+//for deuging purposes only
 void print_occupied_locs(){
   for(int i=0;i<_max_address_;i++){
     if(EEPROM.read(i+1)!=0){
@@ -613,3 +810,150 @@ void print_occupied_locs(){
   }
 }
 
+byte getLocationKpd(){
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("Entr Loc -");
+  int vol_loc=0;
+  char k=0;
+  byte digit=0;
+  int count=0;
+
+  while(count<3){
+  
+    do{
+        k=kpd.getKey();
+    }while(k==NULL);
+
+    if(k=='A' || k=='B' || k=='C' || k=='D' || k=='*' || k=='#'){
+      return -1;
+    }
+    switch(k){
+      case '1':
+        digit=1;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      case '2':
+        digit=2;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      case '3':
+        digit=3;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      case '4':
+        digit=4;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      case '5':
+        digit=5;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      case '6':
+        digit=6;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      case '7':
+        digit=7;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      case '8':
+        digit=8;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      case '9':
+        digit=9;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      case '0':
+        digit=0;
+        lcd.setCursor(count,1);
+        lcd.print(digit);
+        break;
+      default:
+        Serial.println("digit exception!");
+        break;
+    }
+    vol_loc=vol_loc*10 + digit;
+    Serial.print("vol_loc = ");
+    Serial.println(vol_loc);
+    count++;
+  }
+  if(vol_loc > 250 || vol_loc < 1)
+  return -1;
+  
+  byte ret = (byte)vol_loc;
+  return ret;
+}
+
+void logIt(char x,byte vol1){
+  DateTime now=rtc.now();
+  String _fileName = updateStrings();
+  Serial.println(_fileName);
+  Serial.println(String(daysOfTheWeek[now.dayOfTheWeek()]));
+  String _dir_loc_ = "/LOGS/";
+  _dir_loc_.concat(_fileName);
+  if(!SD.exists(_dir_loc_)){
+    Serial.println("created new file");
+    logs = SD.open(_dir_loc_,FILE_WRITE);
+    logs.println("Volunteer#,Date,Time,Log");
+    logs.close();
+  }
+
+  logs = SD.open(_dir_loc_);
+  logs.print(vol1);
+  logs.print(",");
+  logs.print(now.day());
+  logs.print("/");
+  logs.print(now.month());
+  logs.print("/");
+  logs.print(now.year());
+  logs.print(",");
+  logs.print(now.hour());
+  logs.print(":");
+  logs.print(now.minute());
+  logs.print(":");
+  logs.print(now.second());
+  logs.print(",");
+
+  if(x == _Entry_){
+    logs.println("entry");
+  }
+  else{
+    logs.println("exit");
+  }
+  
+}
+
+void printDirectory(File dir, int numTabs) {
+  while (true) {
+
+    File entry =  dir.openNextFile();
+    if (! entry) {
+      // no more files
+      break;
+    }
+    for (uint8_t i = 0; i < numTabs; i++) {
+      Serial.print('\t');
+    }
+    Serial.print(entry.name());
+    if (entry.isDirectory()) {
+      Serial.println("/");
+      printDirectory(entry, numTabs + 1);
+    } else {
+      // files have sizes, directories do not
+      Serial.print("\t\t");
+      Serial.println(entry.size(), DEC);
+    }
+    entry.close();
+  }
+}

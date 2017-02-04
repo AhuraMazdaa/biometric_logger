@@ -901,7 +901,7 @@ void logIt(char x,byte vol1){
   String _fileName = updateStrings();
   Serial.println(_fileName);
   Serial.println(String(daysOfTheWeek[now.dayOfTheWeek()]));
-  String _dir_loc_ = "/LOGS/";
+  String _dir_loc_ = "/logs/";
   _dir_loc_.concat(_fileName);
   if(!SD.exists(_dir_loc_)){
     Serial.println("created new file");

@@ -1,8 +1,4 @@
- /********************************************************************************************/
-/*--------------------------------------------------------------------------------------------
-  Program:      Biometric Logger for BCH Volunteers
 
-  Version:      1.0.0
 
   Description:  Arduino based biometric logger for entry &
                 exit of bch Volunteers.
